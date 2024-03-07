@@ -3,6 +3,8 @@
 
 <body>
 
+    <p><a href="javascript:void(0);" onclick="jumpToCurrentlyPlayingVideo();">Jump to currently playing video</a></p>
+
     <h2>This is a content header</h2>
 
     <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante
@@ -185,7 +187,7 @@
         lacinia sollicitudin massa. Cras metus. Sed aliquet risus a tortor. Integer id quam. </p>
 
 
-    <p><a href="javascript:void(0);" onclick="setEmbeddedYouTubeVideoTime('sPdsq-NwiDw', 120)">2:00</a> - A content
+    <p><a href="javascript:void(0);" onclick="setEmbeddedYouTubeVideoTime('sPdsq-NwiDw', 120);">2:00</a> - A content
         section in the first video</p>
 
     <br />
@@ -196,45 +198,75 @@
 
     <div id="lvuyUd7FlS4" class="embedded-youtube-video"></div>
     <br />
-    <p><a href="javascript:void(0);" onclick="setEmbeddedYouTubeVideoTime('lvuyUd7FlS4', 240)">4:00</a> - A content
+    <p><a href="javascript:void(0);" onclick="setEmbeddedYouTubeVideoTime('lvuyUd7FlS4', 240);">4:00</a> - A content
         section in the second video</p>
 
 
     <script>
-        // This code loads the YouTube IFrame Player API code asynchronously.
+        // This code loads the YouTube Iframe Player API code asynchronously.
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-        // Initialize empty array of iframe Ids, one from each video
-        var iframeIds = [];
+        // Get list of embedded YouTube video iframes on the page
+        var videoIframes = document.querySelectorAll(".embedded-youtube-video");
 
-        // For each iframe you find, add its Id to the iframeIds array
-        var iframes = document.querySelectorAll(".embedded-youtube-video");
-        iframes.forEach(function (iframe) {
-            iframeIds.push(iframe.id);
-        });
-
-        // Once the YouTube API is ready, for each iframeId in your array, create
-        // a new YT player. Store them in a map.
-        var iframeMap = new Map();
+        // Once the YouTube API is ready, for each videoIframeId in your array, create
+        // a new YT player. Store them in a map object.
+        var videoIframeMap = new Map();
         function onYouTubeIframeAPIReady() {
-            iframeIds.forEach(function (iframeId) {
-                var player = new YT.Player(iframeId, {
-                    videoId: iframeId,
+            videoIframes.forEach(function (videoIframe) {
+                var videoIframeId = videoIframe.id;
+                var player = new YT.Player(videoIframeId, {
+                    videoId: videoIframeId,
                     width: "889px",
                     height: "500px",
+                    events: {
+                        'onStateChange': onPlayerStateChange
+                    },
                 });
-                iframeMap.set(iframeId, player);
+                videoIframeMap.set(videoIframeId, player);
             });
         }
+
+        // If a video is newly being played, pause all the other videos that are playing.
+        // Applies to both them playing via clicking on an embedded video, or via them
+        // clicking on a timestamp hyperlink.
+        function onPlayerStateChange(event) {
+            if(event.data == YT.PlayerState.PLAYING) {
+                var newlyPlayingPlayer = event.target;
+                // Value in map is a YT Player object, key is the videoId
+                videoIframeMap.forEach(function(player, videoId, map) {
+                    var playerState = player.getPlayerState();
+                    var isPlaying = playerState == YT.PlayerState.PLAYING || playerState == YT.PlayerState.BUFFERING;
+                    if((player != newlyPlayingPlayer) && isPlaying) {
+			            player.pauseVideo();
+                    }
+		        });
+            }
+        }
+
+        
+        function jumpToCurrentlyPlayingVideo() {
+            videoIframeMap.forEach(function(player, videoId, map) {
+                var playerState = player.getPlayerState();
+                var isPlaying = playerState == YT.PlayerState.PLAYING || playerState == YT.PlayerState.BUFFERING;
+                if(isPlaying) {
+                    document.getElementById(videoId).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        }
+    
 
         // Set the video time for the iframe specified.
         // Look up the player object in the map from before.
         function setEmbeddedYouTubeVideoTime(iframeId, timeInSeconds) {
-            var player = iframeMap.get(iframeId);
+            var player = videoIframeMap.get(iframeId);
             player.seekTo(timeInSeconds, true);
+            player.playVideo();
         }
     </script>
 
